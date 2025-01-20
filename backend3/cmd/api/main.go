@@ -10,59 +10,40 @@ import (
     "syscall"
     "time"
 
-    "github.com/gin-gonic/gin"
-    "github.com/joho/godotenv"
+    "github.com/go-redis/redis/v8"
     "gorm.io/gorm"
     "gorm.io/driver/postgres"
 
     "your-project/internal/config"
-    "your-project/internal/handlers"
-    "your-project/internal/middleware"
-    "your-project/internal/repository/postgres"
-    "your-project/internal/services/odoo"
+    "your-project/internal/router"
+    "your-project/internal/database"
 )
 
 func main() {
-    // Load environment variables
-    if err := godotenv.Load(); err != nil {
-        log.Printf("Warning: .env file not found")
-    }
-
-    // Initialize configuration
+    // Load configuration
     cfg := config.New()
 
     // Initialize database
-    db, err := initDB(cfg)
+    db, err := initDatabase(cfg)
     if err != nil {
         log.Fatalf("Failed to connect to database: %v", err)
     }
 
-    // Initialize repositories
-    productRepo := postgres.NewProductRepository(db)
-    cartRepo := postgres.NewCartRepository(db)
-
-    // Initialize Odoo client
-    odooClient := odoo.NewClient(cfg.OdooConfig)
-
-    // Initialize services
-    productService := services.NewProductService(productRepo, odooClient)
-
-    // Initialize handlers
-    productHandler := handlers.NewProductHandler(productService)
-    cartHandler := handlers.NewCartHandler(cartRepo)
+    // Initialize Redis
+    rdb := initRedis(cfg)
 
     // Setup router
-    router := setupRouter(productHandler, cartHandler)
+    r := router.NewRouter(cfg, db, rdb)
+    handler := r.Setup()
 
-    // Create server
+    // Configure server
     srv := &http.Server{
-        Addr:    ":" + cfg.Port,
-        Handler: router,
+        Addr:    ":" + cfg.Server.Port,
+        Handler: handler,
     }
 
-    // Graceful shutdown
+    // Start server in goroutine
     go func() {
-        // Service connections
         if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
             log.Fatalf("Failed to start server: %v", err)
         }
@@ -74,8 +55,10 @@ func main() {
     <-quit
     log.Println("Shutting down server...")
 
+    // Graceful shutdown
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
+
     if err := srv.Shutdown(ctx); err != nil {
         log.Fatal("Server forced to shutdown:", err)
     }
@@ -83,47 +66,26 @@ func main() {
     log.Println("Server exiting")
 }
 
-func setupRouter(productHandler *handlers.ProductHandler, cartHandler *handlers.CartHandler) *gin.Engine {
-    router := gin.Default()
-
-    // Middleware
-    router.Use(middleware.CORS())
-    router.Use(middleware.Logger())
-
-    // Routes
-    api := router.Group("/api")
-    {
-        products := api.Group("/products")
-        {
-            products.GET("", productHandler.List)
-            products.GET("/:id", productHandler.Get)
-            products.POST("", middleware.Auth(), productHandler.Create)
-            products.PUT("/:id", middleware.Auth(), productHandler.Update)
-            products.DELETE("/:id", middleware.Auth(), productHandler.Delete)
-        }
-
-        cart := api.Group("/cart")
-        {
-            cart.GET("", cartHandler.Get)
-            cart.POST("/items", cartHandler.AddItem)
-            cart.PUT("/items/:id", cartHandler.UpdateItem)
-            cart.DELETE("/items/:id", cartHandler.RemoveItem)
-        }
-    }
-
-    return router
-}
-
-func initDB(cfg *config.Config) (*gorm.DB, error) {
-    db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{})
+func initDatabase(cfg *config.Config) (*gorm.DB, error) {
+    db, err := gorm.Open(postgres.Open(cfg.Database.GetDSN()), &gorm.Config{})
     if err != nil {
         return nil, err
     }
 
-    // Auto migrate models
-    if err := db.AutoMigrate(&models.Product{}, &models.Cart{}, &models.CartItem{}); err != nil {
+    // Run migrations
+    if err := database.RunMigrations(db); err != nil {
         return nil, err
     }
 
     return db, nil
+}
+
+func initRedis(cfg *config.Config) *redis.Client {
+    rdb := redis.NewClient(&redis.Options{
+        Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
+        Password: cfg.Redis.Password,
+        DB:       cfg.Redis.DB,
+    })
+
+    return rdb
 }
