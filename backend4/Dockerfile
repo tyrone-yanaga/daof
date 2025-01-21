@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23.4-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache gcc musl-dev
@@ -14,8 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
-
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./internal/cmd/api
 # Stage 2: Production
 FROM alpine:3.18
 

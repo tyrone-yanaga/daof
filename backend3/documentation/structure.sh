@@ -1,4 +1,6 @@
-issue - database not needed
+issue - database not needed.. although, it provides fast
+access to daa and acts as nice buffer
+
 
 project-root/
 ├── cmd/
