@@ -1,41 +1,42 @@
-# docker/docker-compose.yml
 version: '3.8'
 
 services:
   api:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=ecommerce
-      - DB_PORT=5432
-      - ODOO_URL=${ODOO_URL}
-      - ODOO_DB=${ODOO_DB}
-      - ODOO_API_KEY=${ODOO_API_KEY}
+      - ENV=development
+      - ODOO_HOST=odoo
+      - ODOO_PORT=5432
+      - ODOO_DB_NAME=odoo
+      - ODOO_DB_USER=odoo
+      - ODOO_DB_PASSWORD=odoo
+      - ODOO_URL=http://odoo:8069
+      - REDIS_HOST=redis
     depends_on:
-      - postgres
       - redis
-
-  postgres:
-    image: postgres:14-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=ecommerce
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - odoo
 
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
 
+  odoo:
+    image: odoo:16.0
+    ports:
+      - "8069:8069"
+    environment:
+      - HOST=odoo
+      - USER=odoo
+      - PASSWORD=odoo
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./odoo/config:/etc/odoo
+      - ./odoo/addons:/mnt/extra-addons
+
 volumes:
-  postgres_data:
+  odoo-web-data:

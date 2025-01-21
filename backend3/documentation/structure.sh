@@ -1,3 +1,5 @@
+issue - database not needed
+
 project-root/
 ├── cmd/
 │   └── api/
