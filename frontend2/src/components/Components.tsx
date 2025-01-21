@@ -1,6 +1,8 @@
 "use client";
 
+// ProductDetail.tsx
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -58,16 +60,36 @@ const ProductDetail = () => {
     setQuantity(prev => increment ? prev + 1 : Math.max(1, prev - 1));
   };
 
+  const handleAddToCart = () => {
+    // Use selectedVariations here to validate and process the cart addition
+    const isValid = product.variations.every(variation => 
+      selectedVariations[variation.id] !== undefined
+    );
+    
+    if (!isValid) {
+      alert('Please select all options before adding to cart');
+      return;
+    }
+    
+    // Process add to cart...
+    console.log('Adding to cart:', {
+      product: product.id,
+      quantity,
+      variations: selectedVariations
+    });
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left column - Images */}
         <div className="space-y-4">
           <div className="relative aspect-square">
-            <img
+            <Image
               src={product.images[selectedImage].url}
               alt={product.images[selectedImage].alt}
-              className="w-full h-full object-cover rounded-lg"
+              fill
+              className="object-cover rounded-lg"
             />
           </div>
           <div className="grid grid-cols-4 gap-2">
@@ -75,14 +97,15 @@ const ProductDetail = () => {
               <button
                 key={image.id}
                 onClick={() => setSelectedImage(index)}
-                className={`aspect-square rounded-md overflow-hidden border-2 ${
+                className={`relative aspect-square rounded-md overflow-hidden border-2 ${
                   selectedImage === index ? 'border-blue-500' : 'border-transparent'
                 }`}
               >
-                <img
+                <Image
                   src={image.url}
                   alt={image.alt}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
               </button>
             ))}
@@ -146,7 +169,10 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            <Button className="w-full flex items-center justify-center gap-2">
+            <Button 
+              className="w-full flex items-center justify-center gap-2"
+              onClick={handleAddToCart}
+            >
               <ShoppingCart className="h-5 w-5" />
               Add to Cart
             </Button>
@@ -182,7 +208,6 @@ const ProductDetail = () => {
           <TabsContent value="reviews">
             <Card>
               <CardContent className="pt-6">
-                {/* Reviews component would go here */}
                 <p>Product reviews...</p>
               </CardContent>
             </Card>
@@ -193,4 +218,64 @@ const ProductDetail = () => {
   );
 };
 
-export default ProductDetail;
+// ProductGrid.tsx
+const ProductGrid = () => {
+  const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
+
+  // Sample products data
+  const products: Product[] = [
+    {
+      id: '1',
+      name: 'Product 1',
+      description: 'Short description of product 1',
+      thumbnail: '/api/placeholder/300/300',
+      price: 99.99,
+      variations: [],
+      images: [],
+      details: '',
+      sizeChart: ''
+    },
+    // Add more products...
+  ];
+
+  const handleProductClick = (productId: string) => {
+    window.location.href = `/products/${productId}`;
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {products.map((product) => (
+          <Card
+            key={product.id}
+            className="relative cursor-pointer transform transition-transform duration-200 hover:scale-105"
+            onMouseEnter={() => setHoveredProduct(product.id)}
+            onMouseLeave={() => setHoveredProduct(null)}
+            onClick={() => handleProductClick(product.id)}
+          >
+            <div className="relative aspect-square">
+              <Image
+                src={product.thumbnail}
+                alt={product.name}
+                fill
+                className="object-cover"
+              />
+            </div>
+            {/* Hover overlay */}
+            {hoveredProduct === product.id && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-end p-4 text-white transition-opacity duration-200">
+                <h3 className="text-lg font-semibold mb-2">{product.name}</h3>
+                <p className="text-sm">{product.description}</p>
+                <p className="text-lg font-bold mt-2">
+                  ${product.price.toFixed(2)}
+                </p>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export { ProductDetail, ProductGrid };
