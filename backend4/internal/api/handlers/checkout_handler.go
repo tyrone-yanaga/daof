@@ -40,7 +40,7 @@ func (h *CheckoutHandler) InitiateCheckout(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"checkout_id": session.ID,
-		"payment_url": paymentSession.URL,
+		"payment_url": &paymentSession.Url,
 	})
 }
 
