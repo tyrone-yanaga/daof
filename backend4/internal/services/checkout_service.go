@@ -19,7 +19,7 @@ type CheckoutService struct {
 	redisClient  *redis.Client
 	odooClient   *odoo.Client
 	queueClient  *queue.Client
-	adyenClient  *checkout.Client
+	adyenClient  *checkout.Checkout
 	baseURL      string
 }
 
@@ -29,7 +29,7 @@ func NewCheckoutService(
 	redisClient *redis.Client,
 	odooClient *odoo.Client,
 	queueClient *queue.Client,
-	adyenClient *checkout.Client,
+	adyenClient *checkout.Checkout,
 	baseURL string,
 ) *CheckoutService {
 	return &CheckoutService{
@@ -78,7 +78,7 @@ func (s *CheckoutService) InitiateCheckout(ctx context.Context, req *models.Chec
 	return session, nil
 }
 
-func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID string) (*checkout.PaymentLinksResponse, error) {
+func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID string) (*checkout.PaymentLinkResource, error) {
 	// Get checkout session
 	var session models.CheckoutSession
 	err := s.redisClient.Get(ctx, fmt.Sprintf("checkout:%s", checkoutID), &session)
@@ -92,20 +92,23 @@ func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID s
 		Value:    int64(session.Total * 100), // Convert to cents
 	}
 
-	req := &checkout.PaymentLinkRequest{
+	req := &checkout.CreatePaymentLinkRequest{
 		Reference:   checkoutID,
 		Amount:      amount,
 		Description: fmt.Sprintf("Order %s", checkoutID),
 		ReturnUrl:   fmt.Sprintf("%s/api/checkout/%s/complete", s.baseURL, checkoutID),
 	}
 
-	resp, err := s.adyenClient.PaymentLinks.PaymentLinks(req)
+	resp, httpResp, err := s.adyenClient.PaymentLinks(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create payment session: %w", err)
+		return nil, fmt.Errorf(
+			"failed to create payment session: %w\nhttp response: %v",
+			err, httpResp,
+		)
 	}
 
 	// Update checkout session with payment ID
-	session.PaymentID = resp.PaymentLinkID
+	session.PaymentID = resp.Id
 	session.Status = "processing"
 
 	err = s.redisClient.Set(ctx, fmt.Sprintf("checkout:%s", session.ID), session, 30*time.Minute)
@@ -113,7 +116,7 @@ func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID s
 		return nil, fmt.Errorf("failed to update checkout session: %w", err)
 	}
 
-	return resp, nil
+	return &resp, nil
 }
 
 func (s *CheckoutService) CompleteCheckout(ctx context.Context, checkoutID string, paymentData map[string]interface{}) error {
@@ -130,9 +133,14 @@ func (s *CheckoutService) CompleteCheckout(ctx context.Context, checkoutID strin
 		return fmt.Errorf("failed to get cart: %w", err)
 	}
 
+	// Check if UserID is nil
+	if session.UserID == nil {
+		return fmt.Errorf("user ID is required")
+	}
+
 	// Create order
 	order := &models.Order{
-		UserID:       session.UserID,
+		UserID:       *session.UserID,
 		Status:       "pending",
 		Total:        session.Total,
 		PaymentID:    session.PaymentID,
