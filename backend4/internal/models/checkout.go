@@ -12,6 +12,7 @@ type CheckoutSession struct {
 	PaymentID    string       `json:"payment_id,omitempty"`
 	Total        float64      `json:"total"`
 	Currency     string       `json:"currency"`
+	PaymentData  PaymentData  `json:"paymentData"`
 	ShippingInfo ShippingInfo `json:"shipping_info"`
 	CreatedAt    time.Time    `json:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at"`

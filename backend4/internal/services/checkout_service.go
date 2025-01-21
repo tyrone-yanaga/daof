@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"ecommerce/pkg/adyen"
+
 	"github.com/adyen/adyen-go-api-library/v5/src/checkout"
 	"github.com/google/uuid"
 )
@@ -19,7 +21,7 @@ type CheckoutService struct {
 	redisClient  *redis.Client
 	odooClient   *odoo.Client
 	queueClient  *queue.Client
-	adyenClient  *checkout.Checkout
+	adyenClient  *adyen.Client
 	baseURL      string
 }
 
@@ -29,7 +31,7 @@ func NewCheckoutService(
 	redisClient *redis.Client,
 	odooClient *odoo.Client,
 	queueClient *queue.Client,
-	adyenClient *checkout.Checkout,
+	adyenClient *adyen.Client,
 	baseURL string,
 ) *CheckoutService {
 	return &CheckoutService{
@@ -55,6 +57,23 @@ func (s *CheckoutService) InitiateCheckout(ctx context.Context, req *models.Chec
 		return nil, fmt.Errorf("cart is empty")
 	}
 
+	// Create unique checkout ID
+	checkoutID := uuid.New().String()
+
+	// Create payment session with Adyen
+	paymentReq := &adyen.PaymentRequest{
+		Amount:      cart.Total,
+		Currency:    req.Currency,
+		Reference:   checkoutID,
+		Description: fmt.Sprintf("Order %s", checkoutID),
+		ReturnURL:   fmt.Sprintf("%s/api/checkout/%s/complete", s.baseURL, checkoutID),
+	}
+
+	paymentSession, err := s.adyenClient.CreatePaymentSession(paymentReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create payment session: %w", err)
+	}
+
 	// Create checkout session
 	session := &models.CheckoutSession{
 		ID:           uuid.New().String(),
@@ -67,6 +86,11 @@ func (s *CheckoutService) InitiateCheckout(ctx context.Context, req *models.Chec
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 		ExpiresAt:    time.Now().Add(30 * time.Minute),
+		PaymentData: models.PaymentData{
+			SessionData: paymentSession.SessionData,
+			ClientKey:   paymentSession.ClientKey,
+			Config:      paymentSession.Config,
+		},
 	}
 
 	// Save checkout session
@@ -99,7 +123,7 @@ func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID s
 		ReturnUrl:   fmt.Sprintf("%s/api/checkout/%s/complete", s.baseURL, checkoutID),
 	}
 
-	resp, httpResp, err := s.adyenClient.PaymentLinks(req)
+	resp, httpResp, err := s.adyenClient.Checkout.PaymentLinks(req)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to create payment session: %w\nhttp response: %v",

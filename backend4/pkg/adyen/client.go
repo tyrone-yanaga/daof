@@ -10,7 +10,7 @@ import (
 )
 
 type Client struct {
-	checkout *checkout.Checkout
+	Checkout *checkout.Checkout
 	config   *Config
 }
 
@@ -29,7 +29,7 @@ func NewClient(cfg *Config) (*Client, error) {
 		Environment: env,
 	})
 	return &Client{
-		checkout: client.Checkout,
+		Checkout: client.Checkout,
 		config:   cfg,
 	}, nil
 }
@@ -69,7 +69,7 @@ func (c *Client) CreatePaymentSession(req *PaymentRequest) (*PaymentResponse, er
 	}
 
 	ctx := context.Background()
-	session, httpResp, err := c.checkout.PaymentSession(request, ctx)
+	session, httpResp, err := c.Checkout.PaymentSession(request, ctx)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to create payment session: %w\nhttp response: %v",
@@ -94,7 +94,7 @@ func (c *Client) GetPaymentDetails(paymentID string) (*checkout.PaymentDetailsRe
 	}
 
 	ctx := context.Background()
-	details, httpResp, err := c.checkout.PaymentsDetails(request, ctx)
+	details, httpResp, err := c.Checkout.PaymentsDetails(request, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get payment details: %w\nhttp response: %v",
 			err, httpResp,
