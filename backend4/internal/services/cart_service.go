@@ -67,7 +67,7 @@ func (s *CartService) AddToCart(ctx context.Context, cartID string, productID ui
 	}
 
 	// Check stock availability
-	if product.Stock < quantity {
+	if product.Stock < float64(quantity) {
 		return fmt.Errorf("insufficient stock available")
 	}
 
@@ -101,7 +101,7 @@ func (s *CartService) UpdateCartItem(ctx context.Context, cartID string, product
 		if err != nil {
 			return fmt.Errorf("failed to get product: %w", err)
 		}
-		if product.Stock < quantity {
+		if product.Stock < float64(quantity) {
 			return fmt.Errorf("insufficient stock available")
 		}
 	}
