@@ -90,3 +90,19 @@ func (c *Client) CreateOrder(orderData map[string]interface{}) (int64, error) {
 	}
 	return ids[0], nil
 }
+
+func (c *Client) SearchRead(model string, criteria *odoo.Criteria, options *odoo.Options, result interface{}) error {
+	return c.Client.SearchRead(model, criteria, options, result)
+}
+
+func (c *Client) Read(model string, data []int64, options *odoo.Options, result interface{}) error {
+	return c.Client.Read(model, data, options, result)
+}
+
+func (c Client) NewCriteria() *odoo.Criteria {
+	return odoo.NewCriteria()
+}
+
+func (c *Client) NewOptions() *odoo.Options {
+	return odoo.NewOptions()
+}

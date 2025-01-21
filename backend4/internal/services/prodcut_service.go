@@ -3,6 +3,7 @@ package services
 import (
 	"ecommerce/internal/models"
 	"ecommerce/pkg/odoo"
+	"strconv"
 )
 
 type ProductService struct {
@@ -16,10 +17,17 @@ func NewProductService(odooClient *odoo.Client) *ProductService {
 }
 
 func (s *ProductService) GetProducts() ([]models.Product, error) {
-	// Implement product fetching from Odoo
-	products, err := s.odooClient.SearchRead("product.template", []int{}, []string{
-		"name", "description", "list_price", "qty_available", "default_code",
-	})
+
+	criteria := s.odooClient.NewCriteria().Add("active", "=", true)
+
+	options := s.odooClient.NewOptions().
+		FetchFields(
+			"name", "description", "list_price", "qty_available", "default_code",
+		)
+
+		// Implement product fetching from Odoo
+	var products []map[string]interface{}
+	err := s.odooClient.SearchRead("product.template", criteria, options, &products)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +38,7 @@ func (s *ProductService) GetProducts() ([]models.Product, error) {
 			Name:        p["name"].(string),
 			Description: p["description"].(string),
 			Price:       p["list_price"].(float64),
-			Stock:       int(p["qty_available"].(float64)),
+			Stock:       p["qty_available"].(float64),
 			SKU:         p["default_code"].(string),
 		}
 		result = append(result, product)
@@ -41,9 +49,17 @@ func (s *ProductService) GetProducts() ([]models.Product, error) {
 
 func (s *ProductService) GetProduct(id string) (*models.Product, error) {
 	// Implement single product fetching from Odoo
-	product, err := s.odooClient.Read("product.template", []int{id}, []string{
-		"name", "description", "list_price", "qty_available", "default_code",
-	})
+	productID, err := strconv.Atoi(id)
+	if err != nil {
+		return nil, err
+	}
+	options := s.odooClient.NewOptions().
+		FetchFields(
+			"name", "description", "list_price", "qty_available", "default_code",
+		)
+	var product map[string]interface{}
+	err = s.odooClient.Read("product.template", []int64{int64(productID)}, options, &product)
+
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +68,7 @@ func (s *ProductService) GetProduct(id string) (*models.Product, error) {
 		Name:        product["name"].(string),
 		Description: product["description"].(string),
 		Price:       product["list_price"].(float64),
-		Stock:       int(product["qty_available"].(float64)),
+		Stock:       product["qty_available"].(float64),
 		SKU:         product["default_code"].(string),
 	}, nil
 }
