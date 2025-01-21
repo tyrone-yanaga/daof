@@ -160,3 +160,7 @@ func (c *Client) Close() error {
 	}
 	return nil
 }
+
+func (c *Client) ReturnConnection() *amqp.Connection {
+	return c.conn
+}
