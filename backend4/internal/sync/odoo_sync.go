@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/skilld-labs/go-odoo"
+	"ecommerce/pkg/odoo"
+
 	"gorm.io/gorm"
 )
 
@@ -24,8 +25,8 @@ func NewOdooSync(db *gorm.DB, odooClient *odoo.Client) *OdooSync {
 // SyncProducts synchronizes products between Odoo and local database
 func (s *OdooSync) SyncProducts() error {
 	// Create criteria and options for Odoo API
-	criteria := odoo.NewCriteria().Add("active", "=", true)
-	options := odoo.NewOptions().
+	criteria := s.odooClient.NewCriteria().Add("active", "=", true)
+	options := s.odooClient.NewOptions().
 		FetchFields("id", "name", "description", "list_price", "qty_available", "default_code")
 
 	var products []interface{}
@@ -78,7 +79,7 @@ func (s *OdooSync) SyncOrders() error {
 			},
 		}
 
-		options := &odoo.Options{}
+		options := s.odooClient.NewOptions()
 		odooOrderIDs, err := s.odooClient.Create("sale.order", orderData, options)
 		if err != nil {
 			return fmt.Errorf("failed to create order in Odoo: %w", err)

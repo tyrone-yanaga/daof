@@ -123,7 +123,7 @@ func (s *CheckoutService) CreatePaymentSession(ctx context.Context, checkoutID s
 		ReturnUrl:   fmt.Sprintf("%s/api/checkout/%s/complete", s.baseURL, checkoutID),
 	}
 
-	resp, httpResp, err := s.adyenClient.Checkout.PaymentLinks(req)
+	resp, httpResp, err := s.adyenClient.ReturnCheckout().PaymentLinks(req)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to create payment session: %w\nhttp response: %v",

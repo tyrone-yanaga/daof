@@ -3,10 +3,11 @@ package services
 import (
 	"context"
 	"ecommerce/internal/models"
+	"ecommerce/pkg/odoo"
+	"ecommerce/pkg/queue"
 	"encoding/json"
 	"fmt"
 
-	"github.com/skilld-labs/go-odoo"
 	"github.com/streadway/amqp"
 	"gorm.io/gorm"
 )
@@ -17,9 +18,9 @@ type OrderService struct {
 	db           *gorm.DB // Added missing db field
 }
 
-func NewOrderService(rabbitmqConn *amqp.Connection, odooClient *odoo.Client, db *gorm.DB) *OrderService {
+func NewOrderService(queueClient *queue.Client, odooClient *odoo.Client, db *gorm.DB) *OrderService {
 	return &OrderService{
-		rabbitmqConn: rabbitmqConn,
+		rabbitmqConn: queueClient.ReturnConnection(),
 		odooClient:   odooClient,
 		db:           db,
 	}
@@ -35,7 +36,8 @@ func (s *OrderService) CreateOrder(order *models.Order) (*models.Order, error) {
 		},
 	}
 
-	options := &odoo.Options{}
+	options := s.odooClient.NewOptions()
+
 	odooOrderIDs, err := s.odooClient.Create("sale.order", orderData, options)
 	if err != nil {
 		return nil, err
@@ -108,9 +110,9 @@ func (s *OrderService) GetOrder(ctx context.Context, orderID uint) (*models.Orde
 
 // Helper method to fetch order from Odoo
 func (s *OrderService) getOdooOrder(odooID int64) (map[string]interface{}, error) {
-	criteria := odoo.NewCriteria().Add("id", "=", odooID)
+	criteria := s.odooClient.NewCriteria().Add("id", "=", odooID)
 
-	options := odoo.NewOptions().
+	options := s.odooClient.NewOptions().
 		FetchFields(
 			"name",
 			"state",
