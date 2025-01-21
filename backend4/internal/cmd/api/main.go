@@ -16,11 +16,11 @@ import (
 	"ecommerce/internal/scheduler"
 	"ecommerce/internal/services"
 	"ecommerce/internal/sync"
+	"ecommerce/pkg/adyen"
 	"ecommerce/pkg/odoo"
 	"ecommerce/pkg/queue"
 	"ecommerce/pkg/redis"
 
-	"github.com/adyen/adyen-go-api-library/v5/src/checkout"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -53,7 +53,7 @@ func main() {
 	defer queueClient.Close()
 
 	// Initialize database
-	db, err := database.NewPostgresDB(cfg.Database)
+	db, err := database.NewPostgresDB(&cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -70,7 +70,7 @@ func main() {
 	}
 
 	// Initialize Adyen client
-	adyenClient := checkout.NewClient(&checkout.Config{
+	adyenClient, err := adyen.NewClient(&adyen.Config{
 		ApiKey:      cfg.Adyen.ApiKey,
 		Environment: cfg.Adyen.Environment,
 	})
@@ -78,7 +78,7 @@ func main() {
 	// Initialize services
 	productService := services.NewProductService(odooClient)
 	cartService := services.NewCartService(redisClient, productService)
-	orderService := services.NewOrderService(db, odooClient, queueClient)
+	orderService := services.NewOrderService(queueClient, odooClient, db)
 	checkoutService := services.NewCheckoutService(
 		cartService,
 		orderService,
@@ -91,10 +91,10 @@ func main() {
 
 	// Initialize handlers
 	handlers := &handlers.Handlers{
-		Product:  handlers.NewProductHandler(productService),
-		Cart:     handlers.NewCartHandler(cartService),
-		Checkout: handlers.NewCheckoutHandler(checkoutService),
-		Order:    handlers.NewOrderHandler(orderService),
+		Product:  *handlers.NewProductHandler(productService),
+		Cart:     *handlers.NewCartHandler(cartService),
+		Checkout: *handlers.NewCheckoutHandler(checkoutService),
+		Order:    *handlers.NewOrderHandler(orderService),
 	}
 
 	// Initialize sync service
