@@ -13,14 +13,14 @@ services:
       - backend
 
   frontend:
-    build: ./frontend
+    build: ./frontend2
     environment:
       - NODE_ENV=production
     depends_on:
       - backend
 
   backend:
-    build: ./backend
+    build: ./backend4
     environment:
       - ODOO_HOST=odoo
       - ODOO_PORT=8069
