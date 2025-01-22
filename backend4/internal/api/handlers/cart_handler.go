@@ -19,6 +19,7 @@ func NewCartHandler(cartService *services.CartService) *CartHandler {
 
 type AddToCartRequest struct {
 	ProductID uint `json:"product_id" binding:"required"`
+	VariantID uint `json:"variant_id" binding:"required"`
 	Quantity  int  `json:"quantity" binding:"required,gt=0"`
 }
 
@@ -60,7 +61,7 @@ func (h *CartHandler) AddToCart(c *gin.Context) {
 		return
 	}
 
-	if err := h.cartService.AddToCart(c.Request.Context(), cartID, req.ProductID, req.Quantity); err != nil {
+	if err := h.cartService.AddToCart(c.Request.Context(), cartID, req.ProductID, req.VariantID, req.Quantity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -84,7 +85,7 @@ func (h *CartHandler) UpdateCartItem(c *gin.Context) {
 		return
 	}
 
-	if err := h.cartService.UpdateCartItem(c.Request.Context(), cartID, req.ProductID, req.Quantity); err != nil {
+	if err := h.cartService.UpdateCartItem(c.Request.Context(), cartID, req.ProductID, req.VariantID, req.Quantity); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

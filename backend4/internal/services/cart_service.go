@@ -53,7 +53,7 @@ func (s *CartService) GetCart(ctx context.Context, cartID string) (*models.Cart,
 	return &cart, nil
 }
 
-func (s *CartService) AddToCart(ctx context.Context, cartID string, productID uint, quantity int) error {
+func (s *CartService) AddToCart(ctx context.Context, cartID string, productID uint, variantID uint, quantity int) error {
 	// Get cart
 	cart, err := s.GetCart(ctx, cartID)
 	if err != nil {
@@ -66,18 +66,31 @@ func (s *CartService) AddToCart(ctx context.Context, cartID string, productID ui
 		return fmt.Errorf("failed to get product: %w", err)
 	}
 
+	// Find the specific variant
+	var variant *models.ProductVariant
+	for _, v := range product.Variants {
+		if v.ID == variantID {
+			variant = &v
+			break
+		}
+	}
+	if variant == nil {
+		return fmt.Errorf("variant not found")
+	}
+
 	// Check stock availability
-	if product.Stock < float64(quantity) {
+	if variant.Stock < float64(quantity) {
 		return fmt.Errorf("insufficient stock available")
 	}
 
 	// Create cart item
 	item := models.CartItem{
 		ProductID: productID,
+		VariantID: variantID, // Add this field to CartItem model
 		Quantity:  quantity,
-		Price:     product.Price,
+		Price:     variant.Price,
 		Name:      product.Name,
-		SKU:       product.SKU,
+		SKU:       variant.SKU, // Use variant SKU instead of product SKU
 	}
 
 	// Add to cart
@@ -89,7 +102,7 @@ func (s *CartService) AddToCart(ctx context.Context, cartID string, productID ui
 	return s.saveCart(ctx, cart)
 }
 
-func (s *CartService) UpdateCartItem(ctx context.Context, cartID string, productID uint, quantity int) error {
+func (s *CartService) UpdateCartItem(ctx context.Context, cartID string, productID uint, variantID uint, quantity int) error {
 	cart, err := s.GetCart(ctx, cartID)
 	if err != nil {
 		return err
@@ -101,12 +114,24 @@ func (s *CartService) UpdateCartItem(ctx context.Context, cartID string, product
 		if err != nil {
 			return fmt.Errorf("failed to get product: %w", err)
 		}
-		if product.Stock < float64(quantity) {
+		var variant *models.ProductVariant
+		for _, v := range product.Variants {
+			if v.ID == variantID {
+				variant = &v
+				break
+			}
+		}
+		if variant == nil {
+			return fmt.Errorf("variant not found")
+		}
+
+		// Check stock availability
+		if variant.Stock < float64(quantity) {
 			return fmt.Errorf("insufficient stock available")
 		}
 	}
 
-	if err := cart.UpdateItem(productID, quantity); err != nil {
+	if err := cart.UpdateItem(productID, variantID, quantity); err != nil {
 		return err
 	}
 

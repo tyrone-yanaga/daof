@@ -18,6 +18,7 @@ type Cart struct {
 
 type CartItem struct {
 	ProductID uint    `json:"product_id"`
+	VariantID uint    `json:"variant_id"`
 	Quantity  int     `json:"quantity"`
 	Price     float64 `json:"price"`
 	Subtotal  float64 `json:"subtotal"`
@@ -43,8 +44,8 @@ func (c *Cart) AddItem(item CartItem) error {
 	}
 
 	// Check if item already exists
-	for i := range c.Items {
-		if c.Items[i].ProductID == item.ProductID {
+	for i, it := range c.Items {
+		if it.ProductID == item.ProductID && it.VariantID == item.VariantID {
 			c.Items[i].Quantity += item.Quantity
 			c.Calculate()
 			return nil
@@ -58,13 +59,13 @@ func (c *Cart) AddItem(item CartItem) error {
 }
 
 // UpdateItem updates the quantity of an item
-func (c *Cart) UpdateItem(productID uint, quantity int) error {
+func (c *Cart) UpdateItem(productID uint, variantID uint, quantity int) error {
 	if quantity < 0 {
 		return errors.New("quantity cannot be negative")
 	}
 
-	for i := range c.Items {
-		if c.Items[i].ProductID == productID {
+	for i, item := range c.Items {
+		if item.ProductID == productID && item.VariantID == variantID {
 			if quantity == 0 {
 				// Remove item
 				c.Items = append(c.Items[:i], c.Items[i+1:]...)
