@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   nginx:
     image: nginx:alpine
@@ -14,11 +13,11 @@ services:
       - backend
 
   backend:
-    build: 
+    build:
       context: ./backend4
       dockerfile: Dockerfile
     volumes:
-      - ./backend4/configs:/app/configs  # Mount the config directory
+      - ./backend4/configs:/app/configs
     environment:
       - CONFIG_PATH=/app/configs
     ports:
@@ -54,28 +53,44 @@ services:
 
   odoo:
     image: odoo:16
+    command: -- --database=odoo --init=base --without-demo=all --load-language=en_US
     ports:
       - "8069:8069"
     environment:
       - HOST=db
       - USER=odoo
+      - PASSWORD=odoo
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=odoo
+      - DB_PASSWORD=odoo
+    volumes:
+      - odoo-data:/var/lib/odoo
+      - ./odoo-addons:/mnt/extra-addons
     networks:
       - odoo_network
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:13
     environment:
-      - POSTGRES_DB=odoo16db
-      - POSTGRES_PASSWORD=96sh-bab7-h8ye
+      - POSTGRES_PASSWORD=odoo
       - POSTGRES_USER=odoo
     volumes:
-      - ./postgresql:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - db-data:/var/lib/postgresql/data
     networks:
       - odoo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  odoo-data:
+  db-data:
 
 networks:
   odoo_network:
