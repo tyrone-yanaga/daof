@@ -3,28 +3,27 @@ server:
   baseURL: "http://localhost:8080"
 
 database:
-  host: "localhost"
+  host: "db"
   port: "5432"
-  user: "postgres"
-  password: "your-password"
-  dbname: "ecommerce"
+  user: "odoo"
+  password: "odoo"
+  dbname: "postgres"  # Use postgres as initial database
 
 redis:
-  host: "localhost"
+  host: "redis"
   port: "6379"
   password: ""
   db: 0
 
 rabbitmq:
-  url: "amqp://guest:guest@localhost:5672/"
+  url: "amqp://guest:guest@rabbitmq:5672/"
 
 odoo:
-  url: "http://localhost:8069"
-  database: "odoo"
+  url: "http://odoo:8069"
+  database: "odoo"  # This will be the name of the database you create
   username: "admin"
   password: "admin"
 
 adyen:
   apiKey: "your-api-key"
   environment: "test"
-  merchantID: "your-merchant-id"
