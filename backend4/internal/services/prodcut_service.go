@@ -34,13 +34,7 @@ func (s *ProductService) GetProducts() ([]models.Product, error) {
 
 	var result []models.Product
 	for _, p := range products {
-		product := models.Product{
-			Name:        p["name"].(string),
-			Description: p["description"].(string),
-			Price:       p["list_price"].(float64),
-			Stock:       p["qty_available"].(float64),
-			SKU:         p["default_code"].(string),
-		}
+		product := models.FromOdooProduct(p)
 		result = append(result, product)
 	}
 
@@ -64,11 +58,6 @@ func (s *ProductService) GetProduct(id string) (*models.Product, error) {
 		return nil, err
 	}
 
-	return &models.Product{
-		Name:        product["name"].(string),
-		Description: product["description"].(string),
-		Price:       product["list_price"].(float64),
-		Stock:       product["qty_available"].(float64),
-		SKU:         product["default_code"].(string),
-	}, nil
+	productReturn := models.FromOdooProduct(product)
+	return &productReturn, nil
 }

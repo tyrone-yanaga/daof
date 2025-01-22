@@ -38,14 +38,7 @@ func (s *OdooSync) SyncProducts() error {
 	tx := s.db.Begin()
 	for _, p := range products {
 		productMap := p.(map[string]interface{})
-		product := models.Product{
-			OdooID:      int64(productMap["id"].(float64)), // Changed to int64
-			Name:        productMap["name"].(string),
-			Description: productMap["description"].(string),
-			Price:       productMap["list_price"].(float64),
-			Stock:       float64(productMap["qty_available"].(float64)), // Changed to float64
-			SKU:         productMap["default_code"].(string),
-		}
+		product := models.FromOdooProduct(productMap)
 
 		// Upsert product
 		result := tx.Where("odoo_id = ?", product.OdooID).
