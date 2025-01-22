@@ -188,7 +188,7 @@ func (s *CheckoutService) CompleteCheckout(ctx context.Context, checkoutID strin
 	}
 
 	// Publish order created event
-	err = s.queueClient.Publish("orders", queue.Message{
+	err = s.queueClient.Publish(ctx, "orders", queue.Message{
 		Type:    "order.created",
 		Payload: order,
 	})
