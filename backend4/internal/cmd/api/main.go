@@ -44,11 +44,14 @@ func main() {
 	}
 
 	// Initialize RabbitMQ client
+	time.Sleep(10 * time.Second) // Give RabbitMQ time to fully start
 	queueClient, err := queue.NewClient(queue.Config{
-		URL: cfg.RabbitMQ.URL,
+		URL:               cfg.RabbitMQ.URL,
+		ReconnectInterval: 5 * time.Second,
+		MaxRetries:        10,
 	})
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("Main.go failed to connect to RabbitMQ: %v", err)
 	}
 	defer queueClient.Close()
 
@@ -60,20 +63,26 @@ func main() {
 
 	// Initialize Odoo client
 	odooClient, err := odoo.NewClient(odoo.Config{
-		URL:      cfg.Odoo.URL,
-		Database: cfg.Odoo.Database,
-		Username: cfg.Odoo.Username,
-		Password: cfg.Odoo.Password,
+		URL:           cfg.Odoo.URL,
+		Database:      cfg.Odoo.Database,
+		Username:      cfg.Odoo.Username,
+		Password:      cfg.Odoo.Password,
+		MaxRetries:    10,
+		RetryInterval: 5 * time.Second,
 	})
 	if err != nil {
-		log.Fatalf("Failed to connect to Odoo: %v", err)
+		log.Fatalf("Failed to create Odoo client: %v", err)
 	}
+	defer odooClient.Close()
 
 	// Initialize Adyen client
 	adyenClient, err := adyen.NewClient(&adyen.Config{
 		ApiKey:      cfg.Adyen.ApiKey,
 		Environment: cfg.Adyen.Environment,
 	})
+	if err != nil {
+		log.Fatalf("Failed to create Adyen client: %v", err)
+	}
 
 	// Initialize services
 	productService := services.NewProductService(odooClient)
