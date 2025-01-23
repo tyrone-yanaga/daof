@@ -30,7 +30,7 @@ func (s *OdooSync) SyncProducts() error {
 		FetchFields("id", "name", "description", "list_price", "qty_available", "default_code")
 
 	var products []interface{}
-	if err := s.odooClient.SearchRead("product.template", criteria, options, &products); err != nil {
+	if err := s.odooClient.SearchRead("product.product", criteria, options, &products); err != nil {
 		return fmt.Errorf("failed to fetch products from Odoo: %w", err)
 	}
 

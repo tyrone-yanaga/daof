@@ -41,6 +41,18 @@ type ProductList struct {
 	Items []Product
 }
 
+// OdooClient defines the interface for Odoo operations
+type OdooClient interface {
+	Create(model string, data []interface{}, options *odoo.Options) ([]int64, error)
+	NewCriteria() *odoo.Criteria
+	NewOptions() *odoo.Options
+	SearchRead(model string, criteria *odoo.Criteria, options *odoo.Options, result interface{}) error
+	Read(model string, ids []int64, options *odoo.Options, result interface{}) error
+}
+
+// Ensure Client implements OdooClient
+var _ OdooClient = (*Client)(nil)
+
 func NewClient(config Config) (*Client, error) {
 	if config.MaxRetries == 0 {
 		config.MaxRetries = 10
@@ -102,7 +114,21 @@ func initClient(config Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to create object client: %w", err)
 	}
 
+	baseConfig := &odoo.ClientConfig{
+		Admin:    config.Username,
+		Password: config.Password,
+		Database: config.Database,
+		URL:      config.URL,
+	}
+
+	// Initialize base odoo client first
+	baseClient, err := odoo.NewClient(baseConfig)
+	if err != nil {
+		return nil, fmt.Errorf("new odoo client creation failed: %w", err)
+	}
+
 	client := &Client{
+		Client:       baseClient, // Set the base client
 		config:       config,
 		commonClient: commonClient,
 		objectClient: objectClient,
@@ -151,7 +177,7 @@ func (c *Client) GetProducts(offset, limit int) ([]Product, error) {
 		FetchFields("name", "description", "list_price", "qty_available", "default_code")
 
 	var products ProductList
-	err := c.SearchRead("product.template", criteria, options, &products.Items)
+	err := c.SearchRead("product.product", criteria, options, &products.Items)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
 	}
@@ -168,7 +194,7 @@ func (c *Client) GetProduct(id int64) (*Product, error) {
 		FetchFields("name", "description", "list_price", "qty_available", "default_code")
 
 	var products ProductList
-	err := c.SearchRead("product.template", criteria, options, &products.Items)
+	err := c.SearchRead("product.product", criteria, options, &products.Items)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch product: %w", err)
 	}
@@ -203,4 +229,28 @@ func (c Client) NewCriteria() *odoo.Criteria {
 
 func (c *Client) NewOptions() *odoo.Options {
 	return odoo.NewOptions()
+}
+
+// Options represents query options for Odoo API calls
+type Options struct {
+	*odoo.Options
+}
+
+// Criteria represents search criteria for Odoo API calls
+type Criteria struct {
+	*odoo.Criteria
+}
+
+// NewOptions creates a new Options instance
+func NewOptions() *Options {
+	return &Options{
+		Options: odoo.NewOptions(),
+	}
+}
+
+// NewCriteria creates a new Criteria instance
+func NewCriteria() *Criteria {
+	return &Criteria{
+		Criteria: odoo.NewCriteria(),
+	}
 }
