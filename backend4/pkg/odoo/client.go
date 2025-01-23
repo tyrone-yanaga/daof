@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/kolo/xmlrpc"
@@ -29,14 +30,22 @@ type Config struct {
 }
 
 type Product struct {
-	ID           int64   `json:"id"`
-	Name         string  `json:"name"`
-	Description  string  `json:"description"`
-	ListPrice    float64 `json:"list_price"`
-	QtyAvailable float64 `json:"qty_available"`
-	DefaultCode  string  `json:"default_code"`
+	ID          int64       `xmlrpc:"id"`
+	Name        string      `xmlrpc:"name"`
+	Description interface{} `xmlrpc:"description"` // Handle potential null/string
+	ListPrice   float64     `xmlrpc:"list_price"`
+	DefaultCode interface{} `xmlrpc:"default_code"` // Handle potential null/string
+	Active      interface{} `xmlrpc:"active"`
 }
 
+type OdooProductTemplate struct {
+	ID          int64       `xmlrpc:"id"`
+	Name        string      `xmlrpc:"name"`
+	Description interface{} `xmlrpc:"description"` // Handle potential null/string
+	ListPrice   float64     `xmlrpc:"list_price"`
+	DefaultCode interface{} `xmlrpc:"default_code"` // Handle potential null/string
+	Active      interface{} `xmlrpc:"active"`       // Handle potential string/bool
+}
 type ProductList struct {
 	Items []Product
 }
@@ -178,6 +187,8 @@ func (c *Client) GetProducts(offset, limit int) ([]Product, error) {
 
 	var products ProductList
 	err := c.SearchRead("product.product", criteria, options, &products.Items)
+	fmt.Printf("Odoo CLIENT GetProducts call: %+v\n", products) // Debug print
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch products: %w", err)
 	}
@@ -214,9 +225,33 @@ func (c *Client) CreateOrder(orderData map[string]interface{}) (int64, error) {
 	}
 	return ids[0], nil
 }
-
 func (c *Client) SearchRead(model string, criteria *odoo.Criteria, options *odoo.Options, result interface{}) error {
-	return c.Client.SearchRead(model, criteria, options, result)
+	var records []OdooProductTemplate // Changed from []odoo.ProductTemplate
+	fields := []string{"id", "name", "description", "list_price", "default_code", "active"}
+
+	err := c.objectClient.Call("execute_kw", []interface{}{
+		c.config.Database,
+		c.uid,
+		c.config.Password,
+		model,
+		"search_read",
+		[]interface{}{[]interface{}{}},
+		map[string]interface{}{
+			"fields": fields,
+		},
+	}, &records)
+
+	if err != nil {
+		return fmt.Errorf("search_read failed: %w", err)
+	}
+	fmt.Printf("Odoo CLIENT SearchRead records: %+v\n", records) // Debug print
+
+	// Convert the result to the expected type
+	resultValue := reflect.ValueOf(result).Elem()
+	resultValue.Set(reflect.ValueOf(records))
+	fmt.Printf("Odoo CLIENT SearchRead result: %+v\n", result) // Debug print
+
+	return nil
 }
 
 func (c *Client) Read(model string, data []int64, options *odoo.Options, result interface{}) error {
