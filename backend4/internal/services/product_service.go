@@ -5,6 +5,7 @@ import (
 	"ecommerce/pkg/odoo"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -75,36 +76,59 @@ func (s *ProductService) GetProductImage(productID string) ([]byte, error) {
 	// if cachedImage, exists := s.imageCache.Get(productID); exists {
 	// 	return cachedImage.([]byte), nil
 	// }
-	var product []odoo.OdooProductTemplate
+	if productID == "" {
+		return nil, fmt.Errorf("product ID cannot be empty")
+	}
+	var products []odoo.OdooProductTemplate
 
 	// Set up options to fetch only image fields
 	fields := []string{"image_1920", "image_1024", "image_128"}
 
 	// Create criteria to fetch specific product
-	criteria := s.odooClient.NewCriteria().Add("id", "=", productID)
-
+	criteria := s.odooClient.NewCriteria()
+	idInt, err := strconv.ParseInt(productID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid product ID: %w", err)
+	}
+	fmt.Printf("Debug - Fetching image for product ID: %d\n", idInt)
+	criteria.Add("id", "=", idInt)
 	// Fetch the product with image
-	err := s.odooClient.SearchReads(
+	err = s.odooClient.SearchReads(
 		"product.template",
-		criteria,
+		idInt,
 		fields,
-		&product,
+		&products,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch product image: %w", err)
 	}
-
-	if product[0].Image1920 == "" && product[0].Image1024 == "" && product[0].Image128 == "" {
-		fmt.Println("get product image in PS: ", product)
-		return nil, fmt.Errorf("no image data found")
+	if len(products) == 0 {
+		return nil, fmt.Errorf("product not found: %s", productID)
 	}
-	fmt.Printf("PS - Base64 image data length: %d\n", len(product[0].Image1920))
-	fmt.Printf("PS - Base64 image data length: %d\n", len(product[0].Image1024))
-	fmt.Printf("PS - Base64 image data length: %d\n", len(product[0].Image128))
+
+	fmt.Printf("Debug - Found product: %+v\n", products[0])
+	var imageData string
+	if products[0].Image1920 != "" {
+		imageData = products[0].Image1920
+		fmt.Printf("Debug - Using Image1920 for product %s\n", productID)
+	} else if products[0].Image1024 != "" {
+		imageData = products[0].Image1024
+		fmt.Printf("Debug - Using Image1024 for product %s\n", productID)
+	} else if products[0].Image128 != "" {
+		imageData = products[0].Image128
+		fmt.Printf("Debug - Using Image128 for product %s\n", productID)
+	}
+
+	if imageData == "" {
+		return nil, fmt.Errorf("no image data found for product: %s", productID)
+	}
+	fmt.Printf("PS - Base64 image data length: %d\n", len(products[0].Image1920))
+	fmt.Printf("PS - Base64 image data length: %d\n", len(products[0].Image1024))
+	fmt.Printf("PS - Base64 image data length: %d\n", len(products[0].Image128))
 
 	// Odoo typically stores images as base64 strings
 	// Decode the base64 string back to bytes
-	imageBytes, err := base64.StdEncoding.DecodeString(product[0].Image1920)
+	imageBytes, err := base64.StdEncoding.DecodeString(products[0].Image1920)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image data: %w", err)
 	}

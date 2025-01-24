@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/kolo/xmlrpc"
@@ -60,7 +61,7 @@ type OdooClient interface {
 	NewCriteria() *odoo.Criteria
 	NewOptions() *odoo.Options
 	SearchRead(model string, criteria *odoo.Criteria, options *odoo.Options, result interface{}) error
-	SearchReads(model string, criteria *odoo.Criteria, options []string, result interface{}) error
+	SearchReads(model string, criteria interface{}, options []string, result interface{}) error
 	Read(model string, ids []int64, options *odoo.Options, result interface{}) error
 }
 
@@ -258,35 +259,52 @@ func (c *Client) SearchRead(model string, criteria *odoo.Criteria, options *odoo
 
 	return nil
 }
-func (c *Client) SearchReads(model string, criteria *odoo.Criteria, options []string, result interface{}) error {
+func (c *Client) SearchReads(model string, productID interface{}, options []string, result interface{}) error {
 	var records []map[string]interface{}
 
+	if productID == nil {
+		return fmt.Errorf("no product ID found in criteria")
+	}
+
+	// Create the domain with the specific product ID
+	domain := []interface{}{
+		[]interface{}{"id", "=", productID},
+	}
+
+	fmt.Printf("Debug - Searching for product ID: %v\n", productID)
 	err := c.objectClient.Call("execute_kw", []interface{}{
 		c.config.Database,
 		c.uid,
 		c.config.Password,
 		model,
 		"search_read",
-		[]interface{}{[]interface{}{}},
+		[]interface{}{domain},
 		map[string]interface{}{
 			"fields": options,
 		},
 	}, &records)
 
 	if err != nil {
+		fmt.Printf("Search read error: %v\n", err)
 		return fmt.Errorf("search_reads failed: %w", err)
 	}
 
-	// Convert raw records to OdooProductTemplate
+	fmt.Printf("Debug - Raw records: %+v\n", records)
+
 	var templates []OdooProductTemplate
-	for _, record := range records {
+	for idx, record := range records {
+		fmt.Printf("Debug - Processing record %d: %+v\n", idx, record)
+
+		id := toInt64(record["id"])
+		fmt.Printf("Debug - Converted ID: %v\n", id)
+
 		template := OdooProductTemplate{
-			ID:          record["odoo_id"].(int64),
-			Image1920:   getStringValue(record["image_1920"]),
-			Image1024:   getStringValue(record["image_1024"]),
-			Image128:    getStringValue(record["image_128"]),
-			DefaultCode: getStringValue(record["default_code"]),
-			Active:      getBoolValue(record["active"]),
+			ID:          id,
+			Image1920:   toString(record["image_1920"]),
+			Image1024:   toString(record["image_1024"]),
+			Image128:    toString(record["image_128"]),
+			DefaultCode: toString(record["default_code"]),
+			Active:      toBoolInterface(record["active"]),
 		}
 		templates = append(templates, template)
 	}
@@ -298,25 +316,53 @@ func (c *Client) SearchReads(model string, criteria *odoo.Criteria, options []st
 	return nil
 }
 
-// Helper functions to safely convert types
-func getStringValue(v interface{}) string {
+// Updated helper functions with better nil handling
+func toInt64(v interface{}) int64 {
+	if v == nil {
+		fmt.Printf("Debug - Received nil value for int64 conversion\n")
+		return 0
+	}
+
+	fmt.Printf("Debug - Converting value type %T: %v\n", v, v)
+
+	switch v := v.(type) {
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	case int:
+		return int64(v)
+	case string:
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return i
+		}
+	}
+	fmt.Printf("Debug - Unsupported type for int64 conversion: %T\n", v)
+	return 0
+}
+
+func toString(v interface{}) string {
 	if v == nil {
 		return ""
 	}
 	return fmt.Sprintf("%v", v)
 }
 
-func getBoolValue(v interface{}) interface{} {
+func toBoolInterface(v interface{}) interface{} {
 	if v == nil {
-		return nil
+		return false
 	}
 	switch v := v.(type) {
 	case bool:
 		return v
 	case string:
-		return v == "true"
+		return v == "true" || v == "1" || v == "yes"
+	case int:
+		return v != 0
+	case float64:
+		return v != 0
 	default:
-		return nil
+		return false
 	}
 }
 

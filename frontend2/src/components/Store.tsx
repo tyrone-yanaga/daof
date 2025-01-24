@@ -49,6 +49,7 @@ const Store = () => {
           <div key={product.id} className="group relative">
             <div className="aspect-square overflow-hidden">
             <img
+              key={product.odoo_id}
               src={getImageUrl(product.odoo_id)}
               alt={product.name}
               className="w-full h-full object-cover transform transition-transform group-hover:scale-105"
