@@ -91,17 +91,18 @@ func (s *OrderService) GetOrder(ctx context.Context, orderID uint) (*models.Orde
 
 	// If order has Odoo ID, fetch latest status from Odoo
 	if order.ID > 0 {
-		odooOrder, err := s.getOdooOrder(int64(order.ID))
+		odooOrders, err := s.getOdooOrder(int64(order.ID))
 		if err != nil {
 			// Log the error but don't fail the request
 			// We can still return the local order data
 			fmt.Printf("failed to fetch order from Odoo: %v\n", err)
 		} else {
 			// Update local order status if it differs
-			if status, ok := odooOrder["state"].(string); ok && status != order.Status {
-				order.Status = status
+			if odooOrders[0].Status != order.Status {
+				order.Status = odooOrders[0].Status
 				s.db.Save(&order)
 			}
+
 		}
 	}
 
@@ -109,7 +110,7 @@ func (s *OrderService) GetOrder(ctx context.Context, orderID uint) (*models.Orde
 }
 
 // Helper method to fetch order from Odoo
-func (s *OrderService) getOdooOrder(odooID int64) (map[string]interface{}, error) {
+func (s *OrderService) getOdooOrder(odooID int64) ([]models.Order, error) {
 	criteria := s.odooClient.NewCriteria().Add("id", "=", odooID)
 
 	options := s.odooClient.NewOptions().
@@ -121,15 +122,15 @@ func (s *OrderService) getOdooOrder(odooID int64) (map[string]interface{}, error
 			"partner_id",
 		)
 
-	var result []interface{}
-	err := s.odooClient.SearchRead("sale.order", criteria, options, &result)
+	var order []models.Order
+	err := s.odooClient.SearchRead("sale.order", criteria, options, &order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch order from Odoo: %w", err)
 	}
 
-	if len(result) == 0 {
+	if len(order) == 0 {
 		return nil, fmt.Errorf("order not found in Odoo")
 	}
 
-	return result[0].(map[string]interface{}), nil
+	return order, nil
 }
