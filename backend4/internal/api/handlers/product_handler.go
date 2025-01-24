@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"ecommerce/internal/services"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -34,4 +35,30 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, product)
+}
+
+// In your handler file
+func (h *ProductHandler) GetProductImage(c *gin.Context) {
+	productID := c.Param("id")
+	//TODO add productID validation
+	if productID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID"})
+		return
+	}
+
+	// Get image bytes from service
+	imageBytes, err := h.productService.GetProductImage(productID)
+	if err != nil {
+		fmt.Printf("Image fetch error: %v\n", err) // Add debug logging
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get product image"})
+		return
+	}
+
+	fmt.Printf("Image bytes length: %d\n", len(imageBytes)) // Add debug logging
+	// Set content type header
+	c.Header("Content-Type", "image/jpeg")
+	c.Header("Cache-Control", "public, max-age=3600")
+
+	// Write image bytes to response
+	c.Data(http.StatusOK, "image/jpeg", imageBytes)
 }

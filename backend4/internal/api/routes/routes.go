@@ -12,6 +12,7 @@ func SetupRoutes(r *gin.Engine, handlers *handlers.Handlers) {
 		// Product routes
 		api.GET("/products", handlers.Product.GetProducts)
 		api.GET("/products/:id", handlers.Product.GetProduct)
+		api.GET("/products/:id/image", handlers.Product.GetProductImage)
 
 		// Order routes
 		api.POST("/orders", handlers.Order.CreateOrder)
