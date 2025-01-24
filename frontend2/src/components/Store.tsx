@@ -2,6 +2,7 @@
 // Store.tsx
 import React, { useEffect, useState } from 'react';
 import { useCart } from './CartContext';
+import { api } from './ui/ts/types/api'; 
 
 const Store = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,6 +26,10 @@ const Store = () => {
     return sortOrder === 'high-to-low' ? b.price - a.price : a.price - b.price;
   });
 
+  const getImageUrl = (productId: string) => {
+    return `http://localhost:8080/api/products/${productId}/image`;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -43,15 +48,15 @@ const Store = () => {
         {sortedProducts.map((product) => (
           <div key={product.id} className="group relative">
             <div className="aspect-square overflow-hidden">
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-full object-cover transform transition-transform group-hover:scale-105"
-              />
+            <img
+              src={getImageUrl(product.odoo_id)}
+              alt={product.name}
+              className="w-full h-full object-cover transform transition-transform group-hover:scale-105"
+            />
             </div>
             <div className="mt-4 flex justify-between items-center">
               <h2 className="text-lg font-medium">{product.name}</h2>
-              <p className="text-lg">${product.price.toFixed(2)}</p>
+              <p className="text-lg">${product.base_price.toFixed(2)}</p>
             </div>
             <button
               onClick={() => addItem(product.id, 1)}

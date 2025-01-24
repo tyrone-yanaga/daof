@@ -45,6 +45,10 @@ type OdooProductTemplate struct {
 	ListPrice   float64     `xmlrpc:"list_price"`
 	DefaultCode interface{} `xmlrpc:"default_code"` // Handle potential null/string
 	Active      interface{} `xmlrpc:"active"`       // Handle potential string/bool
+
+	Image1920 string `xmlrpc:"image_1920"`
+	Image1024 string `xmlrpc:"image_1024"`
+	Image128  string `xmlrpc:"image_128"`
 }
 type ProductList struct {
 	Items []Product
@@ -56,6 +60,7 @@ type OdooClient interface {
 	NewCriteria() *odoo.Criteria
 	NewOptions() *odoo.Options
 	SearchRead(model string, criteria *odoo.Criteria, options *odoo.Options, result interface{}) error
+	SearchReads(model string, criteria *odoo.Criteria, options []string, result interface{}) error
 	Read(model string, ids []int64, options *odoo.Options, result interface{}) error
 }
 
@@ -252,6 +257,67 @@ func (c *Client) SearchRead(model string, criteria *odoo.Criteria, options *odoo
 	fmt.Printf("Odoo CLIENT SearchRead result: %+v\n", result) // Debug print
 
 	return nil
+}
+func (c *Client) SearchReads(model string, criteria *odoo.Criteria, options []string, result interface{}) error {
+	var records []map[string]interface{}
+
+	err := c.objectClient.Call("execute_kw", []interface{}{
+		c.config.Database,
+		c.uid,
+		c.config.Password,
+		model,
+		"search_read",
+		[]interface{}{[]interface{}{}},
+		map[string]interface{}{
+			"fields": options,
+		},
+	}, &records)
+
+	if err != nil {
+		return fmt.Errorf("search_reads failed: %w", err)
+	}
+
+	// Convert raw records to OdooProductTemplate
+	var templates []OdooProductTemplate
+	for _, record := range records {
+		template := OdooProductTemplate{
+			ID:          record["odoo_id"].(int64),
+			Image1920:   getStringValue(record["image_1920"]),
+			Image1024:   getStringValue(record["image_1024"]),
+			Image128:    getStringValue(record["image_128"]),
+			DefaultCode: getStringValue(record["default_code"]),
+			Active:      getBoolValue(record["active"]),
+		}
+		templates = append(templates, template)
+	}
+
+	// Set the result
+	resultValue := reflect.ValueOf(result).Elem()
+	resultValue.Set(reflect.ValueOf(templates))
+
+	return nil
+}
+
+// Helper functions to safely convert types
+func getStringValue(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+func getBoolValue(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+	switch v := v.(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true"
+	default:
+		return nil
+	}
 }
 
 func (c *Client) Read(model string, data []int64, options *odoo.Options, result interface{}) error {
