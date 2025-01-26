@@ -3,6 +3,7 @@ package handlers
 import (
 	"ecommerce/internal/services"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,7 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 	id := c.Param("id")
 	product, err := h.productService.GetProduct(id)
 	if err != nil {
+		log.Printf("Error fetching product ID %s: %v", id, err) //debug
 		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 		return
 	}

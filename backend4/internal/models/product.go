@@ -17,6 +17,10 @@ type Product struct {
 	UpdatedAt   time.Time          `json:"updated_at"`
 	Variants    []ProductVariant   `json:"variants" gorm:"foreignKey:ProductID"`
 	Attributes  []ProductAttribute `json:"attributes" gorm:"many2many:product_attributes"`
+
+	Image1920 string `xmlrpc:"image_1920"`
+	Image1024 string `xmlrpc:"image_1024"`
+	Image128  string `xmlrpc:"image_128"`
 }
 
 // ProductVariant represents a specific variant of a product

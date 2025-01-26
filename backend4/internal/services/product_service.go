@@ -50,24 +50,36 @@ func (s *ProductService) GetProducts() ([]models.Product, error) {
 
 func (s *ProductService) GetProduct(id string) (*models.Product, error) {
 	// Implement single product fetching from Odoo
-	// productID, err := strconv.Atoi(id)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// options := s.odooClient.NewOptions().
-	// 	FetchFields(
-	// 		"name", "description", "list_price", "qty_available", "default_code",
-	// 	)
-	var product map[string]interface{}
-	fmt.Println("ProductService GetProduct: ", id) // Debug print
-	// err = s.odooClient.Read("product.template", []int64{int64(productID)}, options, &product)
+	// returns Image too! use when you need the image too
+	var odooProducts []odoo.OdooProductTemplate
+	println("Prod Serv -------------- GetProduct - prductID: ", id) // Debug print
+	criteria := s.odooClient.NewCriteria().Add("id", "=", id)
+	options := s.odooClient.NewOptions().FetchFields(
+		"name", "description", "list_price", "default_code", "active",
+		"image_1920", "image_1024", "image_128",
+	)
 
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err := s.odooClient.SearchRead("product.template", criteria, options, &odooProducts)
 
-	productReturn := models.FromOdooProduct(product)
-	return &productReturn, nil
+	if err != nil {
+		return nil, err
+	}
+
+	// check if we actually got a product
+	if len(odooProducts) == 0 {
+		return nil, fmt.Errorf("error fetching product (ps) from Odoo: %w", err)
+	}
+	odooProduct := odooProducts[0]
+
+	return &models.Product{
+		OdooID:    odooProduct.ID,
+		Name:      odooProduct.Name,
+		BasePrice: odooProduct.ListPrice,
+		Active:    true,
+		Image128:  odooProduct.Image128,
+		Image1024: odooProduct.Image1024,
+		Image1920: odooProduct.Image1920,
+	}, nil
 }
 
 func (s *ProductService) GetProductImage(productID string) ([]byte, error) {
