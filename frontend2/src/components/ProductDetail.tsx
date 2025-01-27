@@ -99,7 +99,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({id}) => {
             {error || 'Product not found'}
           </div>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => handleBackToStore}
             className="px-4 py-2 bg-black text-white hover:bg-gray-800 transition-colors"
           >
             Back to Store
