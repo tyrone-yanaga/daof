@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useCart } from './CartContext';
 import { api } from './ui/ts/types/api';
+import { useRouter } from 'next/navigation';
 
 type Product = {
   id: number;
@@ -20,8 +20,13 @@ const Store: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sortOrder, setSortOrder] = useState<'high-to-low' | 'low-to-high'>('high-to-low');
   const { addItem } = useCart();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -36,9 +41,13 @@ const Store: React.FC = () => {
     fetchProducts();
   }, []);
 
+  if (!mounted) {
+    return null;
+  }
+
   const handleProductClick = async (productId: number) => {
     try {
-      navigate(`/product/${productId}`);
+      router.push(`/product/${productId}`);
     } catch (error) {
       console.error('Failed to fetch related product:', error);
     }
@@ -56,7 +65,7 @@ const Store: React.FC = () => {
 
   const handleAddToCart = (e: React.MouseEvent, productId: number) => {
     e.stopPropagation();
-    addItem(productId, 1);
+    addItem(productId.toString(), 1);
   };
 
   return (

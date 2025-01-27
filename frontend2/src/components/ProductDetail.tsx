@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { BASE_URL } from './ui/ts/types/api';
 
 // Type definitions
@@ -10,6 +10,9 @@ type ProductVariant = {
 type ProductAttribute = {
   // Add attribute properties as needed
 };
+interface ProductDetailProps {
+  id: string;
+}
 
 type Product = {
   id: number;
@@ -28,15 +31,18 @@ type Product = {
   image_128: string;
 };
 
-const ProductDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+const ProductDetail: React.FC<ProductDetailProps> = ({id}) => {
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>('M');
   const [quantity, setQuantity] = useState<number>(1);
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -64,6 +70,14 @@ const ProductDetail: React.FC = () => {
       fetchProduct();
     }
   }, [id]);
+
+  if (!mounted) {
+    return null;
+  }
+
+  const handleBackToStore = () => {
+    router.push('/');  // Using Next.js router for navigation
+  };
 
   // Loading state
   if (loading) {
@@ -107,7 +121,7 @@ const ProductDetail: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <button
-        onClick={() => navigate('/')}
+        onClick={() => handleBackToStore()}
         className="mb-6 text-gray-600 hover:text-gray-800 flex items-center"
       >
         ← Back to Store
@@ -118,7 +132,7 @@ const ProductDetail: React.FC = () => {
         <div className="relative overflow-hidden aspect-square">
           <div className="w-full h-full group">
             <img
-              src={product.image_1920 || `/api/products/${product.odoo_id}/image`}
+              src={product.image_1920 || product.image_1024 || product.image_128 || `/api/products/${product.odoo_id}/image`}
               alt={product.name}
               className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-125"
             />
