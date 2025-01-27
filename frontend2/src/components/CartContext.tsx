@@ -1,6 +1,8 @@
 
 // CartContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from './ui/ts/types/api';
+
 
 interface CartContextType {
   cart: Cart | null;
